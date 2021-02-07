@@ -440,27 +440,21 @@ class HFReturns:
         fMedRV(self.acomps,self.missing_points,res,buf)
         return res
 
-    def meanw(self,b_low=0,e_up=0):
-        if e_up==0:
-            e_up=self.numper
-        return np.array([(self.aweights[b_low:e_up,c][self.missing_points[b_low:e_up,c]]).sum()/
-            (self.missing_points[b_low:e_up,c].sum())
+    def meanw(self):
+        return np.array([(self.aweights[:,c][self.missing_points[:,c]]).sum()/
+            (self.missing_points[:,c].sum())
+               for c in range(self.numvar)])
+
+    def smeanw(self):
+        return np.array([(self.aweights[:,c][self.missing_points[:,c]]**2).sum()/
+            (self.missing_points[:,c].sum())
                for c in range(self.numvar)])    
     
-    def smeanw(self,b_low=0,e_up=0):
-        if e_up==0:
-            e_up=self.numper
-        return np.array([(self.aweights[b_low:e_up,c][self.missing_points[b_low:e_up,c]]**2).sum()/
-            (self.missing_points[b_low:e_up,c].sum())
-               for c in range(self.numvar)])    
-    
-    def wmeanw(self,b_low=0,e_up=0):
-        if e_up==0:
-            e_up=self.numper
-        prcetf=self.aweights[b_low:e_up,:].sum(axis=1)   
-        return np.array([(self.weights[b_low:e_up,c][self.missing_points[b_low:e_up,c]]
-                          /prcetf[[self.missing_points[b_low:e_up,c]]]).sum()/
-            (self.missing_points[b_low:e_up,c].sum())
+    def wmeanw(self):
+        prcetf=self.aweights.sum(axis=1)
+        return np.array([(self.weights[:,c][self.missing_points[:,c]]
+                          /prcetf[[self.missing_points[:,c]]]).sum()/
+            (self.missing_points[:,c].sum())
                for c in range(self.numvar)])      
                
     def fvar(self):

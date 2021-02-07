@@ -9,7 +9,7 @@ from .highfreq import HFReturns, ffillz, fastvar
 class HFR_ETF(HFReturns):
     def __init__(self,nvar=2, nper=100000):
         HFReturns.__init__(self,nvar=nvar,nper=nper)
-    
+
     def generate_from_obsolete(self, prices, missingpoints,etf_col):
         self.numper=prices.shape[0]-1
         self.numvar=prices.shape[1]-1
@@ -23,12 +23,12 @@ class HFR_ETF(HFReturns):
         self.mp_etf=missingpoints.iloc[1:,prices.columns.get_loc(etf_col)].values
 
         cumrets=np.ascontiguousarray((returns.loc[:,cols]).values)
-  
+
         self.wetf=prices.iloc[:,prices.columns.get_loc(etf_col)].values
         self.etf=np.diff(self.wetf)
         self.letf=np.diff(np.log(self.wetf))
         self.wetf=self.wetf[:-1]
-        
+
         cumrets[np.logical_not(self.missing_points)]=np.nan
         ffillz(cumrets)
         self.acumrets=cumrets.copy()
@@ -38,7 +38,7 @@ class HFR_ETF(HFReturns):
         self.aweights*=self.amounts
         self.meanweights=np.array([self.aweights[:,c][self.missing_points[:,c]].sum()/
               self.missing_points[:,c].sum() for c in range(self.numvar)])
-        self.acompmeans=self.acomps.mean(axis=0)    
+        self.acompmeans=self.acomps.mean(axis=0)
         self.meansqws=np.array([(self.aweights[:,c][self.missing_points[:,c]]**2).sum()/
               self.missing_points[:,c].sum() for c in range(self.numvar)])
 
@@ -51,38 +51,34 @@ class HFR_ETF(HFReturns):
         self.generate_from_obsolete(uprices,mp,etf_col=etf_col)
         return 0
 
-    
-    def BAC_Delta_NR(self,b0,b,b_low=0,e_up=0,L_out=False,L_in=False,L=0):
+
+    def BAC_Delta_NR(self,b0,b,L_out=False,L_in=False,L=0):
         if not L_in:
-            if e_up==0:
-                e_up=self.numper
             ### RBAC no adjsutment of the main diagonal 
             W=np.zeros((self.numvar,self.numvar**2))
             Q=np.zeros((self.numvar*self.numvar,self.numvar**2))
-            mw=self.meanw(b_low=b_low,e_up=e_up)
+            mw=self.meanw()
             for i in range(self.numvar):
                 W[i,i*self.numvar:(i+1)*self.numvar]=mw
             for i in range(self.numvar):
                 for j in range(self.numvar):
                     if i!=j:
                         Q[i*self.numvar+j,j*self.numvar+i]=-0.5
-                        Q[i*self.numvar+j,i*self.numvar+j]=0.5          
+                        Q[i*self.numvar+j,i*self.numvar+j]=0.5
             L=np.dot(np.eye(self.numvar**2)-Q,W.T)
             L=np.dot(L,np.linalg.inv(np.eye(self.numvar)*(
-                       self.smeanw(b_low=b_low,e_up=e_up)).sum()
+                       self.smeanw()).sum()
                         -np.linalg.multi_dot([W,Q,W.T])))
         if L_out:
             return np.dot(L,b0-b).reshape(self.numvar,self.numvar),L
         return np.dot(L,b0-b).reshape(self.numvar,self.numvar)
-    
-    def BAC_Delta(self,b0,b,b_low=0,e_up=0,L_out=False,L_in=False,L=0):
+
+    def BAC_Delta(self,b0,b,L_out=False,L_in=False,L=0):
         if not L_in:
-            if e_up==0:
-                e_up=self.numper
             ### RBAC no adjsutment of the main diagonal 
             W=np.zeros((self.numvar,self.numvar**2))
             Q=np.zeros((self.numvar*self.numvar,self.numvar**2))
-            mw=self.meanw(b_low=b_low,e_up=e_up)
+            mw=self.meanw()
             for i in range(self.numvar):
                 W[i,i*self.numvar:(i+1)*self.numvar]=mw
             for i in range(self.numvar):
@@ -91,26 +87,19 @@ class HFR_ETF(HFReturns):
                         Q[i*self.numvar+i,i*self.numvar+i]=1
                     else:
                         Q[i*self.numvar+j,j*self.numvar+i]=-0.5
-                        Q[i*self.numvar+j,i*self.numvar+j]=0.5          
+                        Q[i*self.numvar+j,i*self.numvar+j]=0.5
             L=np.dot(np.eye(self.numvar**2)-Q,W.T)
             L=np.dot(L,np.linalg.inv(np.eye(self.numvar)*(
-                     self.smeanw(b_low=b_low,e_up=e_up)).sum()
+                     self.smeanw()).sum()
                      -np.linalg.multi_dot([W,Q,W.T])))
         if L_out:
             return np.dot(L,b0-b).reshape(self.numvar,self.numvar),L
-        return np.dot(L,b0-b).reshape(self.numvar,self.numvar)    
-        
-    def NBAC_Delta(self,b0,b,noise,b_low=0,e_up=0,L_out=False,L_in=False,L=0):
-        if not L_in:    
-            if e_up==0:
-                e_up=self.numper
-            if b_low==0 and e_up==self.numper: 
-                meanweights=self.meanweights
-                meansqws=self.meansqws    
-            else:
-                meanweights=self.meanw(b_low=b_low,e_up=e_up)
-                meansqws=self.smeanw(b_low=b_low,e_up=e_up)
-            
+        return np.dot(L,b0-b).reshape(self.numvar,self.numvar)
+
+    def NBAC_Delta(self,b0,b,noise,L_out=False,L_in=False,L=0):
+        if not L_in:
+            meanweights=self.meanw()
+            meansqws=self.smeanw()
             ns=noise/self.missing_points.sum(axis=0)
             ### RBAC no adjsutment of the main diagonal 
             W=np.zeros((self.numvar,self.numvar**2))
@@ -123,7 +112,7 @@ class HFR_ETF(HFReturns):
                         Q[i*self.numvar+i,i*self.numvar+i]=1
                     else:
                         Q[i*self.numvar+j,j*self.numvar+i]=-0.5
-                        Q[i*self.numvar+j,i*self.numvar+j]=0.5          
+                        Q[i*self.numvar+j,i*self.numvar+j]=0.5
             L=np.dot(np.eye(self.numvar**2)-Q,W.T)
             L=np.dot(L,np.linalg.inv(np.eye(self.numvar)*(meansqws*np.exp(ns/2)).sum()
                         -np.linalg.multi_dot([W,Q,W.T])))
@@ -131,17 +120,10 @@ class HFR_ETF(HFReturns):
             return np.dot(L,b0-b).reshape(self.numvar,self.numvar)+np.diag(noise),L
         return np.dot(L,b0-b).reshape(self.numvar,self.numvar)+np.diag(noise)
 
-    def NBAC_Delta_NR(self,b0,b,noise,b_low=0,e_up=0,L_out=False,L_in=False,L=0):
-        if not L_in:        
-            if e_up==0:
-                e_up=self.numper
-            if b_low==0 and e_up==self.numper: 
-                meanweights=self.meanweights
-                meansqws=self.meansqws    
-            else:
-                meanweights=self.meanw(b_low=b_low,e_up=e_up)
-                meansqws=self.smeanw(b_low=b_low,e_up=e_up)
-                
+    def NBAC_Delta_NR(self,b0,b,noise,L_out=False,L_in=False,L=0):
+        if not L_in:
+            meanweights=self.meanw()
+            meansqws=self.smeanw()
             ns=noise/self.missing_points.sum(axis=0)
             ### RBAC no adjsutment of the main diagonal 
             W=np.zeros((self.numvar,self.numvar**2))
@@ -152,20 +134,19 @@ class HFR_ETF(HFReturns):
                 for j in range(self.numvar):
                     if i!=j:
                         Q[i*self.numvar+j,j*self.numvar+i]=-0.5
-                        Q[i*self.numvar+j,i*self.numvar+j]=0.5          
+                        Q[i*self.numvar+j,i*self.numvar+j]=0.5
             L=np.dot(np.eye(self.numvar**2)-Q,W.T)
             L=np.dot(L,np.linalg.inv(np.eye(self.numvar)*(meansqws*np.exp(ns/2)).sum()
                         -np.linalg.multi_dot([W,Q,W.T])))
         if L_out:
             return np.dot(L,b0-b).reshape(self.numvar,self.numvar)+np.diag(noise),L
         return np.dot(L,b0-b).reshape(self.numvar,self.numvar)+np.diag(noise)
- 
 
 
 class Sim_BN(HFR_ETF):
 
 ## Barndorff-Nielsen(2011) setup simulation
- 
+
  def __init__(self,nvar=2, nper=100000, mis_pnts=0.99,mis_pntse=0.99):
     HFR_ETF.__init__(self,nvar=nvar,nper=nper)
     self.numper=nper # the number of time periods to be generated (constant correlation)
@@ -177,7 +158,7 @@ class Sim_BN(HFR_ETF):
     #self.inds=np.tril_indices(self.numvar,-1) # lower triangle indices
     self.mispntscale=np.linspace(self.missing_points_ratio,
                               self.missing_points_ratioe,self.numvar)
-    
+
  def frequencies(self,factor=5,minf=0):
     fqs=np.exp(factor*np.linspace(0,1,self.numvar)-factor)*(1-minf)+minf
     self.mispntscale=1-fqs
@@ -189,9 +170,9 @@ class Sim_BN(HFR_ETF):
     alpha=-1/40,jumpsperiod=0, jumpmagnitude = 0.5, rho=-0.3):
     if flag_s:
         rho=np.random.rand(self.numvar)
- 
+
     self.mp_etf=np.ones(self.numper,dtype=np.bool)
- 
+
     dB=np.random.normal(0,1/np.sqrt(self.numper),(self.numper,self.numvar))
     vrho=np.empty((self.numper,self.numvar))
     vrho0=np.random.normal(0,np.sqrt(-1/2/alpha),self.numvar)#np.zeros(self.numvar)
@@ -202,14 +183,14 @@ class Sim_BN(HFR_ETF):
     if flag: sigma[1:,:]=sigma[:-1,:]
     dW=np.random.normal(0,1/np.sqrt(self.numper),(self.numper,1))
     dF=np.sqrt(1-rho**2)*sigma*dW
- 
+
     Csigma=np.sqrt(1-rho**2)*sigma
     self.ssCov=(np.dot(Csigma.T,Csigma)+np.diag(np.diag(np.dot((rho*sigma).T,
                 rho*sigma))))/self.numper
- 
+
     self.comps=mu/self.numper+dF+rho*sigma*dB
- 
-    # simulating non-synchronous trading     
+
+    # simulating non-synchronous trading
     if fexp:
         self.missing_points=np.zeros_like(self.comps,dtype=np.bool)
         for k in range(self.numvar):
@@ -221,28 +202,28 @@ class Sim_BN(HFR_ETF):
         self.missing_points=np.random.rand(self.numper,
         self.numvar)>self.mispntscale
     if grid_preset:
-        self.missing_points=np.logical_or(self.missing_points,mp)                                       
-    # building etf 
+        self.missing_points=np.logical_or(self.missing_points,mp)
+    # building etf
     cumrets=np.cumsum(self.comps,axis=0)
- 
+
     if(jumpsperiod>0):
         self.jfetf=np.diff((np.exp(cumrets)*self.amounts).sum(axis=1),
                            prepend=self.amounts.sum())
-        jumpfrequency = jumpsperiod/self.numper            
+        jumpfrequency = jumpsperiod/self.numper
         meansigma = np.sqrt((self.comps**2).mean(axis=0))
         for l in range(self.numvar):
             jumpoccs=np.random.poisson(jumpfrequency,self.numper)
-            jumptimes = np.arange(self.numper,dtype=np.int32)[jumpoccs>0]    
+            jumptimes = np.arange(self.numper,dtype=np.int32)[jumpoccs>0]
             count=0
             for s in jumptimes:
                 jumpsize=0
                 for j in range(jumpoccs[s]):
                     jumpsize+=(jumpmagnitude*
                     np.sign(np.random.normal(0,1))*np.random.uniform(1,2)*
-                    meansigma[l])   
+                    meansigma[l])
                     cumrets[s:,l]+=jumpsize
                     count+=1
- 
+
     #self.cumrets=cumrets.copy()
     prices=np.exp(cumrets)*self.amounts
     priceetf=prices.sum(axis=1)
@@ -253,7 +234,7 @@ class Sim_BN(HFR_ETF):
     self.etf[1:]=np.diff(self.etf)
     self.wetf=priceetf
     #self.etf=np.zeros(self.numper)
- 
+
     cumrets[np.logical_not(self.missing_points)]=np.nan
     ffillz(cumrets)
     #self.acumrets=cumrets.copy()
@@ -265,36 +246,36 @@ class Sim_BN(HFR_ETF):
     self.aweights=prices.copy()
     self.aweights[np.logical_not(self.missing_points)]=np.nan
     ffillz(self.aweights)
- 
- 
+
+
     self.meanweights=np.array([(prices[:,c][self.missing_points[:,c]]).sum()/
         (self.missing_points[:,c].sum())
            for c in range(self.numvar)])
     self.meansqws=np.array([(prices[self.missing_points[:,c],c]**2).sum()/
         (self.missing_points[:,c].sum())
            for c in range(self.numvar)])
- 
+
  def gen_jmp(self, jumpsperiod=0, jumpmagnitude = 0.5):
         cumrets=np.cumsum(self.comps,axis=0)
-        
+
         if(jumpsperiod>0):
             self.jfetf=np.diff((np.exp(cumrets)*self.amounts).sum(axis=1),
                                prepend=self.amounts.sum())
-            jumpfrequency = jumpsperiod/self.numper            
+            jumpfrequency = jumpsperiod/self.numper
             meansigma = np.sqrt((self.comps**2).mean(axis=0))
             for l in range(self.numvar):
                 jumpoccs=np.random.poisson(jumpfrequency,self.numper)
-                jumptimes = np.arange(self.numper,dtype=np.int32)[jumpoccs>0]    
+                jumptimes = np.arange(self.numper,dtype=np.int32)[jumpoccs>0]
                 count=0
                 for s in jumptimes:
                     jumpsize=0
                     for j in range(jumpoccs[s]):
                         jumpsize+=(jumpmagnitude*
                         np.sign(np.random.normal(0,1))*np.random.uniform(1,2)*
-                        meansigma[l])   
+                        meansigma[l])
                         cumrets[s:,l]+=jumpsize
                         count+=1
-            
+
         #self.cumrets=cumrets.copy()
         prices=np.exp(cumrets)*self.amounts
         priceetf=prices.sum(axis=1)
@@ -305,7 +286,7 @@ class Sim_BN(HFR_ETF):
         self.etf[1:]=np.diff(self.etf)
         self.wetf=priceetf
         #self.etf=np.zeros(self.numper)
-        
+
         cumrets[np.logical_not(self.missing_points)]=np.nan
         ffillz(cumrets)
         #self.acumrets=cumrets.copy()
@@ -318,7 +299,7 @@ class Sim_BN(HFR_ETF):
         self.aweights[np.logical_not(self.missing_points)]=np.nan
         ffillz(self.aweights)
 
-        
+
         self.meanweights=np.array([(prices[:,c][self.missing_points[:,c]]).sum()/
             (self.missing_points[:,c].sum())
                for c in range(self.numvar)])
@@ -329,10 +310,10 @@ class Sim_BN(HFR_ETF):
 
  def noise(self,kappa):
         ### gererates noise and adjusts prices and returns
-        
+
         asvar=(self.comps**2).sum(axis=0)*kappa/self.missing_points.sum(axis=0)
         cumrets=np.random.normal(0,np.sqrt(asvar),(self.numper,self.numvar))
-        
+
         cumrets[np.logical_not(self.missing_points)]=np.nan
         ffillz(cumrets)
         cumrets[1:,:]=np.diff(cumrets,axis=0)
