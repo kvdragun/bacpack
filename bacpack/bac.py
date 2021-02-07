@@ -10,30 +10,20 @@ class HFR_ETF(HFReturns):
     def __init__(self,nvar=2, nper=100000):
         HFReturns.__init__(self,nvar=nvar,nper=nper)
 
-    def generate_from_obsolete(self, prices, missingpoints,etf_col):
+    def generate_from_df(self, prices, missingpoints,etf_col):
         self.numper=prices.shape[0]-1
         self.numvar=prices.shape[1]-1
-
-        prices=prices.copy()
-
         cols=np.ones(prices.shape[1],dtype=bool)
         cols[prices.columns.get_loc(etf_col)]=False
-        returns=(np.log(prices)-np.log(prices.iloc[0,:]))[1:]
         self.missing_points=np.ascontiguousarray(missingpoints.iloc[1:,cols].values)
         self.mp_etf=missingpoints.iloc[1:,prices.columns.get_loc(etf_col)].values
-
-        cumrets=np.ascontiguousarray((returns.loc[:,cols]).values)
-
+  
         self.wetf=prices.iloc[:,prices.columns.get_loc(etf_col)].values
         self.etf=np.diff(self.wetf)
         self.letf=np.diff(np.log(self.wetf))
         self.wetf=self.wetf[:-1]
-
-        cumrets[np.logical_not(self.missing_points)]=np.nan
-        ffillz(cumrets)
-        self.acumrets=cumrets.copy()
-        cumrets[1:,:]=np.diff(cumrets,axis=0)
-        self.acomps=cumrets
+        
+        self.acomps=np.diff(np.log(prices.iloc[:,cols]),axis=0)
         self.aweights=np.ascontiguousarray(prices.iloc[1:,cols].values).astype(np.float64)
         self.aweights*=self.amounts
         self.meanweights=np.array([self.aweights[:,c][self.missing_points[:,c]].sum()/
@@ -48,7 +38,7 @@ class HFR_ETF(HFReturns):
         self.amounts=np.array(shnumb)
         self.amounts/=outstanding
         uprices[etf_col]-=nonequity/outstanding
-        self.generate_from_obsolete(uprices,mp,etf_col=etf_col)
+        self.generate_from_df(uprices,mp,etf_col=etf_col)
         return 0
 
 
