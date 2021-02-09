@@ -7,7 +7,7 @@ Exchange Traded Funds (ETFs) are often more liquid than many of their component 
 
 ## The Authors
 The package is based upon the reaserch and the results of Beta Adjusted Covariance Estimation paper by Kris Boudt, Kirill Dragun, Orimar Sauri and Steven Vanduffel.
-The authors of the code are Kirill Dragun and Kris Boudt.
+The authors of the code are Kirill Dragun, Kris Boudt and Emil Sjørup.
 
 ## Package
 
