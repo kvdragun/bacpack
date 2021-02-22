@@ -412,7 +412,7 @@ class HFReturns:
         fastTSRV(self.acomps,self.missing_points,res,K,J)
         return res  
      
-    def HY(self): 
+    def HYCov(self):
         # Hayashi-Yoshida integrated covariance estimator
         cov=np.empty((self.numvar,self.numvar))
         beta0=np.empty((self.numvar,self.numvar))
